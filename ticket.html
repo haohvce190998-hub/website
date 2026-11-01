@@ -24,6 +24,11 @@
         <a class="btn dark" href="index.html">Quay lại trang chính</a>
       </div>
 
+      <div id="purchaseModeTabs" class="purchase-mode-tabs hidden" aria-label="Chọn loại đơn hàng">
+        <button class="purchase-mode-tab active" type="button" data-purchase-mode="ticket">Vé tham dự</button>
+        <button class="purchase-mode-tab" type="button" data-purchase-mode="souvenir">Quà lưu niệm</button>
+      </div>
+
       <div id="ticketContent" class="ticket-layout hidden">
         <form id="ticketForm" class="form-card">
           <label for="fullName">Họ và tên</label>
@@ -65,6 +70,44 @@
         </div>
       </div>
 
+      <div id="souvenirContent" class="ticket-layout hidden">
+        <form id="souvenirForm" class="form-card">
+          <label for="souvenirFullName">Họ và tên</label>
+          <input type="text" id="souvenirFullName" placeholder="Nhập họ tên" required />
+
+          <label for="souvenirPhone">Số điện thoại</label>
+          <input type="tel" id="souvenirPhone" placeholder="Nhập số điện thoại" required />
+
+          <label for="souvenirProduct">Quà lưu niệm</label>
+          <select id="souvenirProduct" required>
+            <option value="">-- Chọn sản phẩm --</option>
+            <option value="Huy hiệu Thám Chính" data-price="39000">Huy hiệu Thám Chính - 39.000đ</option>
+            <option value="Bộ postcard vụ án" data-price="59000">Bộ postcard vụ án - 59.000đ</option>
+            <option value="Áo Thám Chính" data-price="199000">Áo Thám Chính - 199.000đ</option>
+          </select>
+
+          <label for="souvenirQuantity">Số lượng</label>
+          <input type="number" id="souvenirQuantity" min="1" max="20" value="1" required />
+
+          <label for="souvenirAddress">Địa chỉ nhận hàng</label>
+          <textarea id="souvenirAddress" rows="3" placeholder="Nhập địa chỉ nhận quà" required></textarea>
+
+          <button class="btn primary" type="submit">Tiếp tục thanh toán</button>
+        </form>
+
+        <div class="ticket-info souvenir-info">
+          <span class="payment-kicker">Quầy vật chứng</span>
+          <h3>Quà lưu niệm Thám Chính</h3>
+          <p>Chọn món quà, số lượng và địa chỉ nhận. Mã QR thanh toán sẽ hiện ở bước tiếp theo.</p>
+          <div class="souvenir-list">
+            <div><strong>Huy hiệu</strong><span>39.000đ</span></div>
+            <div><strong>Bộ postcard</strong><span>59.000đ</span></div>
+            <div><strong>Áo Thám Chính</strong><span>199.000đ</span></div>
+          </div>
+          <p class="payment-note">Đơn hàng được ghi nhận sau khi bạn báo đã chuyển khoản và chờ quản trị viên xác nhận.</p>
+        </div>
+      </div>
+
       <div id="adminCheckinPanel" class="ticket-checkin-panel hidden">
         <div class="section-title">
           <h2>Check-in vé bằng QR</h2>
@@ -94,12 +137,57 @@
     </section>
   </main>
 
+  <div id="paymentModal" class="payment-modal hidden" role="dialog" aria-modal="true" aria-labelledby="paymentTitle">
+    <div class="payment-shell">
+      <button id="closePaymentBtn" class="payment-back" type="button" aria-label="Quay lại">←</button>
+      <div class="payment-heading">
+        <span class="payment-kicker">Thanh toán đơn hàng</span>
+        <h2 id="paymentTitle">Quét mã để thanh toán</h2>
+      </div>
+
+      <div class="payment-order-card">
+        <div>
+          <span id="paymentOrderLabel">Mã đơn hàng</span>
+          <strong id="paymentOrderCode">TC-000000</strong>
+        </div>
+        <div class="payment-total">
+          <span>Số tiền</span>
+          <strong id="paymentAmount">0đ</strong>
+        </div>
+      </div>
+
+      <div class="payment-body">
+        <div class="payment-qr-panel">
+          <img id="paymentQrImage" src="assets/payment-qr-huynh-vy-hao.jpg" alt="Mã QR thanh toán Huỳnh Vỹ Hào">
+          <a class="btn payment-download" href="assets/payment-qr-huynh-vy-hao.jpg" download="QR-thanh-toan-Huynh-Vy-Hao.jpg">Tải mã QR</a>
+        </div>
+
+        <div class="payment-instructions">
+          <h3>Hướng dẫn thanh toán</h3>
+          <ol>
+            <li>Mở ứng dụng ngân hàng hoặc ví điện tử hỗ trợ quét QR.</li>
+            <li>Quét mã và kiểm tra người nhận <strong>HUỲNH VỸ HÀO</strong>.</li>
+            <li>Nhập đúng số tiền và nội dung chuyển khoản bên dưới.</li>
+          </ol>
+          <div class="payment-transfer-content">
+            <span>Nội dung chuyển khoản</span>
+            <strong id="paymentTransferContent">TC-000000</strong>
+            <button id="copyPaymentCodeBtn" type="button">Sao chép</button>
+          </div>
+          <p class="payment-warning">Không đóng trang cho đến khi bạn hoàn tất chuyển khoản.</p>
+          <button id="reportPaidBtn" class="btn primary payment-confirm" type="button">Tôi đã chuyển khoản</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <script src="config.js?v=ticket-auto-email-20260716"></script>
   <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
   <script>
     const CONFIG = window.THAM_CHINH_CONFIG || {};
     let pendingTicket = null;
+    let pendingPurchase = null;
     let scannerStream = null;
     let scannerFrameId = 0;
     let isScannerRunning = false;
@@ -137,6 +225,110 @@
       const accountName = encodeURIComponent(CONFIG.vietqr?.accountName || "THAM CHINH GAME SHOW");
       const addInfo = encodeURIComponent(content);
       return `https://img.vietqr.io/image/${bankId}-${accountNo}-compact2.png?amount=${amount}&addInfo=${addInfo}&accountName=${accountName}`;
+    }
+
+    function formatMoney(value) {
+      return `${Number(value || 0).toLocaleString("vi-VN")}đ`;
+    }
+
+    function openPayment(order) {
+      pendingPurchase = order;
+      document.getElementById("paymentOrderLabel").textContent = order.type === "ticket" ? "Mã giữ chỗ" : "Mã đơn quà";
+      document.getElementById("paymentOrderCode").textContent = order.code;
+      document.getElementById("paymentAmount").textContent = formatMoney(order.total);
+      document.getElementById("paymentTransferContent").textContent = order.code;
+      document.getElementById("paymentModal").classList.remove("hidden");
+      document.body.classList.add("payment-open");
+    }
+
+    function closePayment() {
+      document.getElementById("paymentModal").classList.add("hidden");
+      document.body.classList.remove("payment-open");
+    }
+
+    function setPurchaseMode(mode) {
+      const showTickets = mode === "ticket";
+      document.getElementById("ticketContent").classList.toggle("hidden", !showTickets);
+      document.getElementById("souvenirContent").classList.toggle("hidden", showTickets);
+      document.querySelectorAll("[data-purchase-mode]").forEach(button => {
+        button.classList.toggle("active", button.dataset.purchaseMode === mode);
+      });
+    }
+
+    function getSouvenirOrders() {
+      return JSON.parse(localStorage.getItem("thamChinhSouvenirOrders")) || [];
+    }
+
+    function handleSouvenirOrder(event) {
+      event.preventDefault();
+      const productSelect = document.getElementById("souvenirProduct");
+      const product = productSelect.value;
+      const price = Number(productSelect.selectedOptions[0]?.dataset.price || 0);
+      const quantity = Number(document.getElementById("souvenirQuantity").value);
+      const order = {
+        type: "souvenir",
+        code: `TCQ-${Date.now().toString().slice(-6)}`,
+        fullName: document.getElementById("souvenirFullName").value.trim(),
+        phone: document.getElementById("souvenirPhone").value.trim(),
+        address: document.getElementById("souvenirAddress").value.trim(),
+        product,
+        quantity,
+        total: price * quantity,
+        status: "pending-payment",
+        createdAt: new Date().toLocaleString("vi-VN")
+      };
+
+      openPayment(order);
+    }
+
+    function reportPayment() {
+      if (!pendingPurchase) return;
+
+      if (pendingPurchase.type === "ticket") {
+        const bookedCount = getBookedCountBySlot(pendingPurchase.timeSlot);
+        const remainingCount = MAX_TICKETS_PER_SLOT - bookedCount;
+        if (pendingPurchase.quantity > remainingCount) {
+          alert("Khung giờ này vừa hết suất. Vui lòng chọn khung giờ khác.");
+          closePayment();
+          pendingPurchase = null;
+          renderTimeSlots();
+          return;
+        }
+
+        const tickets = getTickets();
+        tickets.push({
+          ...pendingPurchase,
+          status: "payment-reported",
+          paymentReportedAt: new Date().toLocaleString("vi-VN")
+        });
+        saveTickets(tickets);
+        document.getElementById("ticketResult").classList.remove("hidden");
+        document.getElementById("ticketResult").innerHTML = `
+          <strong>Đã ghi nhận thông báo chuyển khoản</strong><br>
+          Mã giữ chỗ: ${pendingPurchase.code}<br>
+          Tổng tiền: ${formatMoney(pendingPurchase.total)}<br>
+          <em>Vé đang chờ quản trị viên đối soát thanh toán.</em>
+        `;
+        renderTimeSlots();
+      } else {
+        const orders = getSouvenirOrders();
+        orders.push({
+          ...pendingPurchase,
+          status: "payment-reported",
+          paymentReportedAt: new Date().toLocaleString("vi-VN")
+        });
+        localStorage.setItem("thamChinhSouvenirOrders", JSON.stringify(orders));
+        document.querySelector(".souvenir-info").innerHTML = `
+          <span class="payment-kicker">Đơn quà đã được ghi nhận</span>
+          <h3>${pendingPurchase.product}</h3>
+          <p><strong>Mã đơn:</strong> ${pendingPurchase.code}</p>
+          <p><strong>Tổng tiền:</strong> ${formatMoney(pendingPurchase.total)}</p>
+          <p class="payment-note">Đơn đang chờ quản trị viên đối soát thanh toán và liên hệ giao hàng.</p>
+        `;
+      }
+
+      closePayment();
+      pendingPurchase = null;
     }
 
     function createTicketQRPayload(ticket) {
@@ -405,6 +597,9 @@
         <button id="confirmPaidBtn" class="btn primary" type="button">Tôi đã thanh toán</button>
       `;
 
+      document.getElementById("qrBox").classList.add("hidden");
+      openPayment({ type: "ticket", ...pendingTicket });
+
       event.target.reset();
       document.getElementById("timeSlot").value = "";
       document.querySelectorAll(".time-slot-btn").forEach(item => item.classList.remove("active"));
@@ -647,6 +842,8 @@
       if (current?.role === "admin") {
         document.getElementById("ticketLoginNotice").classList.add("hidden");
         document.getElementById("ticketContent").classList.add("hidden");
+        document.getElementById("souvenirContent").classList.add("hidden");
+        document.getElementById("purchaseModeTabs").classList.add("hidden");
         adminPanel.classList.remove("hidden");
         return;
       }
@@ -656,17 +853,36 @@
       if (!current) {
         document.getElementById("ticketLoginNotice").classList.remove("hidden");
         document.getElementById("ticketContent").classList.add("hidden");
+        document.getElementById("souvenirContent").classList.add("hidden");
+        document.getElementById("purchaseModeTabs").classList.add("hidden");
         return;
       }
 
       document.getElementById("ticketLoginNotice").classList.add("hidden");
+      document.getElementById("purchaseModeTabs").classList.remove("hidden");
       document.getElementById("ticketContent").classList.remove("hidden");
       document.getElementById("fullName").value = getDisplayName(current);
       document.getElementById("email").value = current.email || "";
+      document.getElementById("souvenirFullName").value = getDisplayName(current);
     }
 
     document.getElementById("ticketForm").addEventListener("submit", handleTicketPaidFlow);
+    document.getElementById("souvenirForm").addEventListener("submit", handleSouvenirOrder);
     document.addEventListener("click", event => {
+      const modeButton = event.target.closest("[data-purchase-mode]");
+      if (modeButton) {
+        setPurchaseMode(modeButton.dataset.purchaseMode);
+      }
+      if (event.target.id === "closePaymentBtn") {
+        closePayment();
+      }
+      if (event.target.id === "reportPaidBtn") {
+        reportPayment();
+      }
+      if (event.target.id === "copyPaymentCodeBtn") {
+        navigator.clipboard.writeText(document.getElementById("paymentTransferContent").textContent);
+        event.target.textContent = "Đã sao chép";
+      }
       if (event.target.id === "confirmPaidBtn") {
         confirmPendingPayment();
       }
