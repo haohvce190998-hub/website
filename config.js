@@ -26,6 +26,7 @@ anonKey: "sb_publishable_nKYllPcLgq40Kk8vTEauhg_1b3cqhg2",
     usersPath: "users.json",
     commentsPath: "comments.json",
     charactersPath: "characters.json",
+    souvenirsPath: "souvenirs.json",
     maxFileSizeMB: 200
   },
 

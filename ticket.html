@@ -78,31 +78,28 @@
           <label for="souvenirPhone">Số điện thoại</label>
           <input type="tel" id="souvenirPhone" placeholder="Nhập số điện thoại" required />
 
-          <label for="souvenirProduct">Quà lưu niệm</label>
-          <select id="souvenirProduct" required>
-            <option value="">-- Chọn sản phẩm --</option>
-            <option value="Huy hiệu Thám Chính" data-price="39000">Huy hiệu Thám Chính - 39.000đ</option>
-            <option value="Bộ postcard vụ án" data-price="59000">Bộ postcard vụ án - 59.000đ</option>
-            <option value="Áo Thám Chính" data-price="199000">Áo Thám Chính - 199.000đ</option>
-          </select>
-
-          <label for="souvenirQuantity">Số lượng</label>
-          <input type="number" id="souvenirQuantity" min="1" max="20" value="1" required />
+          <fieldset class="souvenir-picker">
+            <legend>Chọn mẫu và số lượng</legend>
+            <div id="souvenirProductGrid" class="souvenir-product-grid"></div>
+          </fieldset>
 
           <label for="souvenirAddress">Địa chỉ nhận hàng</label>
           <textarea id="souvenirAddress" rows="3" placeholder="Nhập địa chỉ nhận quà" required></textarea>
 
-          <button class="btn primary" type="submit">Tiếp tục thanh toán</button>
+          <div class="souvenir-cart-summary">
+            <div><span>Tổng số lượng</span><strong id="souvenirTotalQuantity">0</strong></div>
+            <div><span>Tổng thanh toán</span><strong id="souvenirTotalAmount">0đ</strong></div>
+          </div>
+
+          <button id="souvenirCheckoutBtn" class="btn primary" type="submit" disabled>Thanh toán</button>
         </form>
 
         <div class="ticket-info souvenir-info">
           <span class="payment-kicker">Quầy vật chứng</span>
-          <h3>Quà lưu niệm Thám Chính</h3>
-          <p>Chọn món quà, số lượng và địa chỉ nhận. Mã QR thanh toán sẽ hiện ở bước tiếp theo.</p>
-          <div class="souvenir-list">
-            <div><strong>Huy hiệu</strong><span>39.000đ</span></div>
-            <div><strong>Bộ postcard</strong><span>59.000đ</span></div>
-            <div><strong>Áo Thám Chính</strong><span>199.000đ</span></div>
+          <h3>Bộ móc khóa Thám Chính</h3>
+          <p>Mỗi mẫu mặc định 20.000đ. Bạn có thể chọn nhiều mẫu và số lượng khác nhau trong cùng một đơn.</p>
+          <div id="souvenirSelectionPreview" class="souvenir-selection-preview">
+            <p>Chưa chọn mẫu quà nào.</p>
           </div>
           <p class="payment-note">Đơn hàng được ghi nhận sau khi bạn báo đã chuyển khoản và chờ quản trị viên xác nhận.</p>
         </div>
@@ -131,6 +128,41 @@
           <div id="checkinResult" class="ticket-info">
             <h3>Kết quả check-in</h3>
             <p>Chưa quét mã vé nào.</p>
+          </div>
+        </div>
+
+        <div id="adminSouvenirPanel" class="admin-souvenir-panel">
+          <div class="section-title">
+            <h2>Quản lý quà lưu niệm</h2>
+            <p>Thêm, sửa, xóa mẫu quà và thay đổi giá hiển thị cho khách hàng.</p>
+          </div>
+
+          <div class="admin-souvenir-layout">
+            <div id="adminSouvenirList" class="admin-souvenir-list"></div>
+
+            <form id="adminSouvenirForm" class="form-card">
+              <h3 id="adminSouvenirFormTitle">Thêm mẫu quà mới</h3>
+              <input id="adminSouvenirId" type="hidden">
+
+              <label for="adminSouvenirName">Tên mẫu quà</label>
+              <input id="adminSouvenirName" type="text" placeholder="VD: Móc khóa bút máy" required>
+
+              <label for="adminSouvenirPrice">Giá bán</label>
+              <input id="adminSouvenirPrice" type="number" min="0" step="1000" value="20000" required>
+
+              <label for="adminSouvenirImage">Đường dẫn ảnh</label>
+              <input id="adminSouvenirImage" type="text" placeholder="assets/ten-anh.jpg hoặc https://...">
+
+              <label for="adminSouvenirImageFile">Hoặc chọn ảnh từ máy</label>
+              <input id="adminSouvenirImageFile" type="file" accept="image/*">
+              <img id="adminSouvenirPreview" class="admin-souvenir-preview hidden" alt="Xem trước mẫu quà">
+
+              <div class="admin-row-actions">
+                <button class="btn primary" type="submit">Lưu mẫu quà</button>
+                <button id="resetSouvenirFormBtn" class="btn" type="button">Thêm mới</button>
+              </div>
+              <p id="adminSouvenirStatus" class="payment-note"></p>
+            </form>
           </div>
         </div>
       </div>
@@ -182,6 +214,7 @@
   </div>
 
   <script src="config.js?v=ticket-auto-email-20260716"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
   <script>
@@ -191,6 +224,15 @@
     let scannerStream = null;
     let scannerFrameId = 0;
     let isScannerRunning = false;
+    let souvenirCatalog = [];
+
+    const DEFAULT_SOUVENIRS = [
+      { id: "pen", name: "Móc khóa Bút Máy", price: 20000, image: "assets/souvenir-pen.jpg" },
+      { id: "watch", name: "Móc khóa Đồng Hồ", price: 20000, image: "assets/souvenir-watch.jpg" },
+      { id: "camera", name: "Móc khóa Máy Ảnh", price: 20000, image: "assets/souvenir-camera.jpg" },
+      { id: "cat", name: "Móc khóa Mèo Thám Tử", price: 20000, image: "assets/souvenir-cat.jpg" },
+      { id: "magnifier", name: "Móc khóa Kính Lúp", price: 20000, image: "assets/souvenir-magnifier.jpg" }
+    ];
 
     function getCurrentUser() {
       return JSON.parse(localStorage.getItem("thamChinhCurrentUser"));
@@ -259,26 +301,248 @@
       return JSON.parse(localStorage.getItem("thamChinhSouvenirOrders")) || [];
     }
 
+    function escapeHtml(value = "") {
+      return String(value)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+    }
+
+    function getLocalSouvenirs() {
+      const stored = JSON.parse(localStorage.getItem("thamChinhSouvenirs") || "null");
+      return Array.isArray(stored) && stored.length ? stored : DEFAULT_SOUVENIRS;
+    }
+
+    function getSouvenirStoragePath() {
+      return CONFIG.supabase?.souvenirsPath || "souvenirs.json";
+    }
+
+    function getTicketSupabaseClient() {
+      if (!CONFIG.supabase?.url || !CONFIG.supabase?.anonKey || !window.supabase?.createClient) return null;
+      if (!window.thamChinhTicketSupabase) {
+        window.thamChinhTicketSupabase = window.supabase.createClient(
+          CONFIG.supabase.url,
+          CONFIG.supabase.anonKey
+        );
+      }
+      return window.thamChinhTicketSupabase;
+    }
+
+    async function loadSouvenirCatalog() {
+      souvenirCatalog = getLocalSouvenirs();
+      const client = getTicketSupabaseClient();
+      if (client) {
+        const { data, error } = await client.storage
+          .from(CONFIG.supabase.bucket || "VIDEOS")
+          .download(getSouvenirStoragePath());
+
+        if (!error && data) {
+          const remote = JSON.parse(await data.text());
+          if (Array.isArray(remote) && remote.length) souvenirCatalog = remote;
+        }
+      }
+
+      localStorage.setItem("thamChinhSouvenirs", JSON.stringify(souvenirCatalog));
+      renderSouvenirProducts();
+      renderAdminSouvenirs();
+    }
+
+    async function saveSouvenirCatalog() {
+      localStorage.setItem("thamChinhSouvenirs", JSON.stringify(souvenirCatalog));
+      renderSouvenirProducts();
+      renderAdminSouvenirs();
+
+      const client = getTicketSupabaseClient();
+      if (!client) throw new Error("Chưa kết nối được Supabase.");
+      const file = new Blob([JSON.stringify(souvenirCatalog, null, 2)], { type: "application/json" });
+      const { error } = await client.storage
+        .from(CONFIG.supabase.bucket || "VIDEOS")
+        .upload(getSouvenirStoragePath(), file, {
+          upsert: true,
+          cacheControl: "0",
+          contentType: "application/json"
+        });
+      if (error) throw error;
+    }
+
+    function getSelectedSouvenirs() {
+      return souvenirCatalog
+        .map(product => {
+          const input = document.querySelector(`[data-souvenir-quantity="${product.id}"]`);
+          const quantity = Math.max(0, Number(input?.value || 0));
+          return { ...product, quantity, lineTotal: Number(product.price) * quantity };
+        })
+        .filter(product => product.quantity > 0);
+    }
+
+    function updateSouvenirSummary() {
+      const selected = getSelectedSouvenirs();
+      const totalQuantity = selected.reduce((sum, product) => sum + product.quantity, 0);
+      const total = selected.reduce((sum, product) => sum + product.lineTotal, 0);
+      document.getElementById("souvenirTotalQuantity").textContent = totalQuantity;
+      document.getElementById("souvenirTotalAmount").textContent = formatMoney(total);
+      document.getElementById("souvenirCheckoutBtn").disabled = totalQuantity === 0;
+      document.getElementById("souvenirSelectionPreview").innerHTML = selected.length
+        ? selected.map(product => `
+            <div>
+              <span>${escapeHtml(product.name)} × ${product.quantity}</span>
+              <strong>${formatMoney(product.lineTotal)}</strong>
+            </div>
+          `).join("")
+        : "<p>Chưa chọn mẫu quà nào.</p>";
+    }
+
+    function renderSouvenirProducts() {
+      const grid = document.getElementById("souvenirProductGrid");
+      if (!grid) return;
+      grid.innerHTML = souvenirCatalog.map(product => `
+        <article class="souvenir-product-card">
+          <img src="${escapeHtml(product.image)}" alt="${escapeHtml(product.name)}">
+          <div class="souvenir-product-copy">
+            <h3>${escapeHtml(product.name)}</h3>
+            <strong>${formatMoney(product.price)}</strong>
+          </div>
+          <label>
+            Số lượng
+            <input
+              type="number"
+              min="0"
+              max="99"
+              value="0"
+              data-souvenir-quantity="${escapeHtml(product.id)}"
+              aria-label="Số lượng ${escapeHtml(product.name)}">
+          </label>
+        </article>
+      `).join("");
+      updateSouvenirSummary();
+    }
+
     function handleSouvenirOrder(event) {
       event.preventDefault();
-      const productSelect = document.getElementById("souvenirProduct");
-      const product = productSelect.value;
-      const price = Number(productSelect.selectedOptions[0]?.dataset.price || 0);
-      const quantity = Number(document.getElementById("souvenirQuantity").value);
+      const items = getSelectedSouvenirs();
+      if (!items.length) {
+        alert("Vui lòng chọn ít nhất một mẫu quà.");
+        return;
+      }
+      const quantity = items.reduce((sum, product) => sum + product.quantity, 0);
+      const total = items.reduce((sum, product) => sum + product.lineTotal, 0);
       const order = {
         type: "souvenir",
         code: `TCQ-${Date.now().toString().slice(-6)}`,
         fullName: document.getElementById("souvenirFullName").value.trim(),
         phone: document.getElementById("souvenirPhone").value.trim(),
         address: document.getElementById("souvenirAddress").value.trim(),
-        product,
+        items,
         quantity,
-        total: price * quantity,
+        total,
         status: "pending-payment",
         createdAt: new Date().toLocaleString("vi-VN")
       };
 
       openPayment(order);
+    }
+
+    function renderAdminSouvenirs() {
+      const list = document.getElementById("adminSouvenirList");
+      if (!list) return;
+      list.innerHTML = souvenirCatalog.map(product => `
+        <article class="admin-souvenir-item">
+          <img src="${escapeHtml(product.image)}" alt="${escapeHtml(product.name)}">
+          <div>
+            <h3>${escapeHtml(product.name)}</h3>
+            <strong>${formatMoney(product.price)}</strong>
+          </div>
+          <div class="admin-row-actions">
+            <button class="btn small" type="button" data-edit-souvenir="${escapeHtml(product.id)}">Sửa</button>
+            <button class="btn small danger" type="button" data-delete-souvenir="${escapeHtml(product.id)}">Xóa</button>
+          </div>
+        </article>
+      `).join("");
+    }
+
+    function resetAdminSouvenirForm() {
+      const form = document.getElementById("adminSouvenirForm");
+      form.reset();
+      document.getElementById("adminSouvenirId").value = "";
+      document.getElementById("adminSouvenirPrice").value = "20000";
+      document.getElementById("adminSouvenirFormTitle").textContent = "Thêm mẫu quà mới";
+      document.getElementById("adminSouvenirPreview").classList.add("hidden");
+      document.getElementById("adminSouvenirStatus").textContent = "";
+    }
+
+    function editSouvenir(id) {
+      const product = souvenirCatalog.find(item => item.id === id);
+      if (!product) return;
+      document.getElementById("adminSouvenirId").value = product.id;
+      document.getElementById("adminSouvenirName").value = product.name;
+      document.getElementById("adminSouvenirPrice").value = product.price;
+      document.getElementById("adminSouvenirImage").value = product.image;
+      document.getElementById("adminSouvenirFormTitle").textContent = `Sửa: ${product.name}`;
+      const preview = document.getElementById("adminSouvenirPreview");
+      preview.src = product.image;
+      preview.classList.remove("hidden");
+      document.getElementById("adminSouvenirForm").scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+
+    function readSouvenirImage(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = () => reject(new Error("Không đọc được ảnh."));
+        reader.readAsDataURL(file);
+      });
+    }
+
+    async function handleAdminSouvenirSubmit(event) {
+      event.preventDefault();
+      const current = getCurrentUser();
+      if (!current || current.role !== "admin") return;
+
+      const existingId = document.getElementById("adminSouvenirId").value;
+      const imageFile = document.getElementById("adminSouvenirImageFile").files?.[0];
+      let image = document.getElementById("adminSouvenirImage").value.trim();
+      if (imageFile) {
+        if (!imageFile.type.startsWith("image/") || imageFile.size > 2 * 1024 * 1024) {
+          alert("Vui lòng chọn ảnh hợp lệ dưới 2MB.");
+          return;
+        }
+        image = await readSouvenirImage(imageFile);
+      }
+
+      const product = {
+        id: existingId || `souvenir-${Date.now()}`,
+        name: document.getElementById("adminSouvenirName").value.trim(),
+        price: Number(document.getElementById("adminSouvenirPrice").value),
+        image: image || "assets/souvenir-magnifier.jpg"
+      };
+      souvenirCatalog = existingId
+        ? souvenirCatalog.map(item => item.id === existingId ? product : item)
+        : [...souvenirCatalog, product];
+
+      const status = document.getElementById("adminSouvenirStatus");
+      status.textContent = "Đang lưu catalog...";
+      try {
+        await saveSouvenirCatalog();
+        resetAdminSouvenirForm();
+        status.textContent = "Đã lưu và đồng bộ catalog.";
+      } catch (error) {
+        status.textContent = `Đã lưu trên trình duyệt, chưa đồng bộ Supabase: ${error.message}`;
+      }
+    }
+
+    async function deleteSouvenir(id) {
+      const current = getCurrentUser();
+      if (!current || current.role !== "admin") return;
+      const product = souvenirCatalog.find(item => item.id === id);
+      if (!product || !confirm(`Xóa mẫu "${product.name}"?`)) return;
+      souvenirCatalog = souvenirCatalog.filter(item => item.id !== id);
+      try {
+        await saveSouvenirCatalog();
+      } catch (error) {
+        document.getElementById("adminSouvenirStatus").textContent = `Đã xóa trên trình duyệt, chưa đồng bộ Supabase: ${error.message}`;
+      }
     }
 
     function reportPayment() {
@@ -320,7 +584,12 @@
         localStorage.setItem("thamChinhSouvenirOrders", JSON.stringify(orders));
         document.querySelector(".souvenir-info").innerHTML = `
           <span class="payment-kicker">Đơn quà đã được ghi nhận</span>
-          <h3>${pendingPurchase.product}</h3>
+          <h3>${pendingPurchase.quantity} món quà lưu niệm</h3>
+          <div class="souvenir-selection-preview">
+            ${pendingPurchase.items.map(item => `
+              <div><span>${escapeHtml(item.name)} × ${item.quantity}</span><strong>${formatMoney(item.lineTotal)}</strong></div>
+            `).join("")}
+          </div>
           <p><strong>Mã đơn:</strong> ${pendingPurchase.code}</p>
           <p><strong>Tổng tiền:</strong> ${formatMoney(pendingPurchase.total)}</p>
           <p class="payment-note">Đơn đang chờ quản trị viên đối soát thanh toán và liên hệ giao hàng.</p>
@@ -845,6 +1114,7 @@
         document.getElementById("souvenirContent").classList.add("hidden");
         document.getElementById("purchaseModeTabs").classList.add("hidden");
         adminPanel.classList.remove("hidden");
+        renderAdminSouvenirs();
         return;
       }
 
@@ -868,6 +1138,29 @@
 
     document.getElementById("ticketForm").addEventListener("submit", handleTicketPaidFlow);
     document.getElementById("souvenirForm").addEventListener("submit", handleSouvenirOrder);
+    document.getElementById("adminSouvenirForm").addEventListener("submit", handleAdminSouvenirSubmit);
+    document.addEventListener("input", event => {
+      if (event.target.matches("[data-souvenir-quantity]")) updateSouvenirSummary();
+    });
+    document.getElementById("adminSouvenirImageFile").addEventListener("change", event => {
+      const file = event.target.files?.[0];
+      const preview = document.getElementById("adminSouvenirPreview");
+      if (!file) {
+        preview.classList.add("hidden");
+        return;
+      }
+      if (!file.type.startsWith("image/") || file.size > 2 * 1024 * 1024) {
+        alert("Vui lòng chọn ảnh hợp lệ dưới 2MB.");
+        event.target.value = "";
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = () => {
+        preview.src = reader.result;
+        preview.classList.remove("hidden");
+      };
+      reader.readAsDataURL(file);
+    });
     document.addEventListener("click", event => {
       const modeButton = event.target.closest("[data-purchase-mode]");
       if (modeButton) {
@@ -882,6 +1175,17 @@
       if (event.target.id === "copyPaymentCodeBtn") {
         navigator.clipboard.writeText(document.getElementById("paymentTransferContent").textContent);
         event.target.textContent = "Đã sao chép";
+      }
+      if (event.target.id === "resetSouvenirFormBtn") {
+        resetAdminSouvenirForm();
+      }
+      const editSouvenirButton = event.target.closest("[data-edit-souvenir]");
+      if (editSouvenirButton) {
+        editSouvenir(editSouvenirButton.dataset.editSouvenir);
+      }
+      const deleteSouvenirButton = event.target.closest("[data-delete-souvenir]");
+      if (deleteSouvenirButton) {
+        deleteSouvenir(deleteSouvenirButton.dataset.deleteSouvenir);
       }
       if (event.target.id === "confirmPaidBtn") {
         confirmPendingPayment();
@@ -900,7 +1204,7 @@
       }
     });
     renderTimeSlots();
-    prefillMemberInfo();
+    loadSouvenirCatalog().finally(prefillMemberInfo);
   </script>
 </body>
 </html>

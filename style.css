@@ -1411,6 +1411,176 @@ textarea:focus {
   gap: 16px;
 }
 
+.souvenir-picker {
+  margin: 4px 0 18px;
+  padding: 0;
+  border: 0;
+}
+
+.souvenir-picker legend {
+  margin-bottom: 12px;
+  font-weight: 800;
+}
+
+.souvenir-product-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.souvenir-product-card {
+  display: grid;
+  grid-template-rows: 180px auto auto;
+  gap: 12px;
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid var(--line-soft);
+  border-radius: 6px;
+  background: #091224;
+}
+
+.souvenir-product-card img {
+  width: 100%;
+  height: 180px;
+  object-fit: cover;
+  object-position: center;
+  border: 1px solid var(--line-soft);
+  border-radius: 4px;
+}
+
+.souvenir-product-copy {
+  min-width: 0;
+}
+
+.souvenir-product-copy h3 {
+  margin: 0 0 6px;
+  color: var(--text);
+  font-size: 16px;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.souvenir-product-copy strong {
+  color: var(--blue-bright);
+  font-size: 18px;
+}
+
+.souvenir-product-card label {
+  display: grid;
+  grid-template-columns: 1fr 72px;
+  gap: 10px;
+  align-items: center;
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.souvenir-product-card input {
+  width: 72px;
+  min-width: 0;
+  padding: 9px;
+  text-align: center;
+}
+
+.souvenir-cart-summary {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin: 4px 0 18px;
+}
+
+.souvenir-cart-summary div {
+  padding: 14px;
+  border: 1px solid var(--line-soft);
+  background: #08101f;
+}
+
+.souvenir-cart-summary span {
+  display: block;
+  margin-bottom: 5px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.souvenir-cart-summary strong {
+  color: var(--blue-bright);
+  font-size: 21px;
+}
+
+.souvenir-selection-preview {
+  display: grid;
+  gap: 8px;
+}
+
+.souvenir-selection-preview div {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.admin-souvenir-panel {
+  margin-top: 56px;
+  padding-top: 36px;
+  border-top: 1px solid var(--line-soft);
+}
+
+.admin-souvenir-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(320px, .8fr);
+  gap: 24px;
+  align-items: start;
+}
+
+.admin-souvenir-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.admin-souvenir-item {
+  display: grid;
+  grid-template-columns: 92px 1fr;
+  gap: 14px;
+  align-items: center;
+  padding: 12px;
+  border: 1px solid var(--line-soft);
+  border-radius: 6px;
+  background: var(--panel);
+}
+
+.admin-souvenir-item img {
+  width: 92px;
+  height: 92px;
+  grid-row: span 2;
+  object-fit: cover;
+  border: 1px solid var(--line-soft);
+  border-radius: 4px;
+}
+
+.admin-souvenir-item h3 {
+  margin: 0 0 5px;
+  font-size: 16px;
+  line-height: 1.35;
+}
+
+.admin-souvenir-item strong {
+  color: var(--blue-bright);
+}
+
+.admin-souvenir-item .admin-row-actions {
+  grid-column: 2;
+}
+
+.admin-souvenir-preview {
+  width: 100%;
+  max-height: 260px;
+  object-fit: cover;
+  border: 1px solid var(--line-soft);
+  border-radius: 4px;
+}
+
 .souvenir-list {
   display: grid;
   gap: 10px;
@@ -1600,6 +1770,31 @@ body.payment-open {
 }
 
 @media (max-width: 760px) {
+  .souvenir-product-grid,
+  .admin-souvenir-list,
+  .admin-souvenir-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .souvenir-product-card {
+    grid-template-columns: 120px 1fr;
+    grid-template-rows: auto auto;
+  }
+
+  .souvenir-product-card img {
+    width: 120px;
+    height: 120px;
+    grid-row: span 2;
+  }
+
+  .souvenir-product-card label {
+    grid-column: 2;
+  }
+
+  .souvenir-cart-summary {
+    grid-template-columns: 1fr;
+  }
+
   .payment-modal {
     padding: 18px 14px 30px;
   }
