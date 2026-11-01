@@ -330,6 +330,31 @@
       return window.thamChinhTicketSupabase;
     }
 
+    async function restoreTicketAuthSession() {
+      const client = getTicketSupabaseClient();
+      if (!client) return;
+      const { data } = await client.auth.getSession();
+      if (!data.session?.user) {
+        localStorage.removeItem("thamChinhCurrentUser");
+        return;
+      }
+
+      const authUser = data.session.user;
+      const { data: profile, error } = await client
+        .from("profiles")
+        .select("email, full_name, role")
+        .eq("id", authUser.id)
+        .single();
+      if (error) throw error;
+      localStorage.setItem("thamChinhCurrentUser", JSON.stringify({
+        id: authUser.id,
+        name: profile.full_name || authUser.user_metadata?.full_name || authUser.email.split("@")[0],
+        email: profile.email || authUser.email,
+        role: profile.role || "customer",
+        points: 0
+      }));
+    }
+
     async function loadSouvenirCatalog() {
       souvenirCatalog = getLocalSouvenirs();
       const client = getTicketSupabaseClient();
@@ -1204,7 +1229,10 @@
       }
     });
     renderTimeSlots();
-    loadSouvenirCatalog().finally(prefillMemberInfo);
+    Promise.all([
+      loadSouvenirCatalog(),
+      restoreTicketAuthSession()
+    ]).finally(prefillMemberInfo);
   </script>
 </body>
 </html>

@@ -147,25 +147,11 @@ function cloneDefaultCharacters() {
 }
 
 function getUsers() {
-  const users = JSON.parse(localStorage.getItem("thamChinhUsers")) || [];
-  if (!users.some(u => u.email === "admin@thamchinh.vn")) {
-    users.push({
-      name: "Admin Thám Chính",
-      email: "admin@thamchinh.vn",
-      password: "admin123",
-      role: "admin",
-      points: 999
-    });
-    localStorage.setItem("thamChinhUsers", JSON.stringify(users));
-  }
-  return users;
+  return JSON.parse(localStorage.getItem("thamChinhUsers")) || [];
 }
 
 function saveUsers(users) {
   localStorage.setItem("thamChinhUsers", JSON.stringify(users));
-  saveSupabaseUsers(users).catch(error => {
-    console.warn(`Không đồng bộ được tài khoản lên Supabase: ${error.message}`);
-  });
 }
 
 function getCurrentUser() {
@@ -261,48 +247,37 @@ async function handleAuth(event) {
   const name = document.getElementById("authName").value.trim();
   const email = document.getElementById("authEmail").value.trim().toLowerCase();
   const password = document.getElementById("authPassword").value.trim();
-  const users = await syncUsersFromSupabase();
+  const client = getSupabaseClient();
+  if (!client) {
+    alert("Chưa kết nối được Supabase Auth.");
+    return;
+  }
 
   if (authMode === "register") {
     const cleanName = normalizeAccountName(name);
-    const isEmailUsed = users.some(u => u.email === email);
-    const isNameUsed = users.some(u => isSameAccountName(u.name, cleanName));
-
-    if (isNameUsed && isEmailUsed) {
-      alert("Tài khoản đã tồn tại và email đã được sử dụng.");
-      return;
-    }
-
-    if (isNameUsed) {
-      alert("Tài khoản đã tồn tại.");
-      return;
-    }
-
-    if (isEmailUsed) {
-      alert("Email đã được sử dụng.");
-      return;
-    }
-
-    const user = {
-      name: cleanName,
+    const { data, error } = await client.auth.signUp({
       email,
       password,
-      role: "user",
-      points: 0
-    };
-
-    users.push(user);
-    saveUsers(users);
-    setCurrentUser(user);
-    alert("Đăng ký thành công!");
-  } else {
-    const user = users.find(u => u.email === email && u.password === password);
-    if (!user) {
-      alert("Tài khoản không chính xác, vui lòng đăng kí trước khi đăng nhập.");
+      options: { data: { full_name: cleanName } }
+    });
+    if (error) {
+      alert(error.message);
       return;
     }
-
-    setCurrentUser(user);
+    if (!data.session) {
+      alert("Đăng ký thành công. Hãy kiểm tra email xác nhận rồi đăng nhập.");
+      closeAuth();
+      return;
+    }
+    await setCurrentUserFromSupabase(data.user);
+    alert("Đăng ký và đăng nhập thành công!");
+  } else {
+    const { data, error } = await client.auth.signInWithPassword({ email, password });
+    if (error) {
+      alert("Email hoặc mật khẩu không chính xác.");
+      return;
+    }
+    await setCurrentUserFromSupabase(data.user);
     alert("Đăng nhập thành công!");
   }
 
@@ -310,7 +285,44 @@ async function handleAuth(event) {
   refreshAuthUI();
 }
 
-function logout() {
+async function setCurrentUserFromSupabase(authUser) {
+  const client = getSupabaseClient();
+  const { data: profile, error } = await client
+    .from("profiles")
+    .select("email, full_name, role")
+    .eq("id", authUser.id)
+    .single();
+  if (error) throw error;
+
+  const user = {
+    id: authUser.id,
+    name: profile.full_name || authUser.user_metadata?.full_name || authUser.email.split("@")[0],
+    email: profile.email || authUser.email,
+    role: profile.role || "customer",
+    points: 0
+  };
+  setCurrentUser(user);
+
+  const users = getUsers().filter(item => item.email !== user.email);
+  users.push(user);
+  localStorage.setItem("thamChinhUsers", JSON.stringify(users));
+  return user;
+}
+
+async function restoreSupabaseAuth() {
+  const client = getSupabaseClient();
+  if (!client) return;
+  const { data } = await client.auth.getSession();
+  if (!data.session?.user) {
+    localStorage.removeItem("thamChinhCurrentUser");
+    return;
+  }
+  await setCurrentUserFromSupabase(data.session.user);
+}
+
+async function logout() {
+  const client = getSupabaseClient();
+  if (client) await client.auth.signOut();
   localStorage.removeItem("thamChinhCurrentUser");
   refreshAuthUI();
 }
@@ -1990,7 +2002,7 @@ renderVideos();
 renderTimeSlots();
 prefillTicketMemberInfo();
 Promise.all([
-  syncUsersFromSupabase(),
+  restoreSupabaseAuth(),
   syncCommentsFromSupabase(),
   syncCharactersFromSupabase()
 ]).finally(() => {
