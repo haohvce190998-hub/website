@@ -1,0 +1,690 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Đặt vé - Thám Chính</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Mali:wght@400;500;600;700&display=swap&subset=vietnamese" rel="stylesheet">
+  <link rel="stylesheet" href="style.css?v=ticket-jsqr-scanner-20260716" />
+</head>
+
+<body class="ticket-page">
+  <main>
+    <section class="section ticket-section">
+      <div class="section-title">
+        <h2>Đặt vé tham gia phá án</h2>
+        <p>Trang này chỉ dùng để đăng ký vé, tạo mã giữ chỗ và quét QR thanh toán.</p>
+      </div>
+
+      <div id="ticketLoginNotice" class="ticket-login-notice hidden">
+        <h3>Bạn cần đăng nhập tài khoản thành viên</h3>
+        <p>Hãy quay lại trang chính, đăng nhập hoặc đăng ký tài khoản rồi mở lại trang đặt vé.</p>
+        <a class="btn dark" href="index.html">Quay lại trang chính</a>
+      </div>
+
+      <div id="ticketContent" class="ticket-layout hidden">
+        <form id="ticketForm" class="form-card">
+          <label for="fullName">Họ và tên</label>
+          <input type="text" id="fullName" placeholder="Nhập họ tên" required />
+
+          <label for="email">Email</label>
+          <input type="email" id="email" placeholder="example@gmail.com" required />
+
+          <label for="phone">Số điện thoại</label>
+          <input type="tel" id="phone" placeholder="Nhập số điện thoại" required />
+
+          <label for="ticketType">Loại vé</label>
+          <select id="ticketType" required>
+            <option value="">-- Chọn loại vé --</option>
+            <option value="Sinh viên" data-price="49000">Sinh viên - 49.000đ</option>
+            <option value="Thường" data-price="79000">Thường - 79.000đ</option>
+            <option value="VIP Điều Tra" data-price="129000">VIP Điều Tra - 129.000đ</option>
+          </select>
+
+          <label>Khung giờ tham gia</label>
+          <input type="hidden" id="timeSlot" required>
+          <div id="timeSlotGrid" class="time-slot-grid"></div>
+
+          <label for="quantity">Số lượng vé</label>
+          <input type="number" id="quantity" min="1" max="5" value="1" required />
+
+          <button class="btn primary" type="submit">Tạo vé & QR</button>
+        </form>
+
+        <div class="ticket-info">
+          <h3>Thông tin vé</h3>
+          <p><strong>Chủ đề:</strong> Vụ Án Người Báo Án</p>
+          <p><strong>Thám tử:</strong> Khang</p>
+          <p><strong>Người báo án:</strong> Cường</p>
+          <p><strong>Twist:</strong> Người báo án là hung thủ.</p>
+
+          <div id="ticketResult" class="result-box hidden"></div>
+          <div id="qrBox" class="qr-box hidden"></div>
+        </div>
+      </div>
+
+      <div id="adminCheckinPanel" class="ticket-checkin-panel hidden">
+        <div class="section-title">
+          <h2>Check-in vé bằng QR</h2>
+          <p>Admin dùng camera laptop để quét mã QR vé. Mỗi mã vé chỉ được xác nhận một lần.</p>
+        </div>
+
+        <div class="ticket-layout">
+          <div class="form-card">
+            <h3>Camera quét mã</h3>
+            <video id="checkinVideo" class="checkin-video" muted playsinline></video>
+            <div class="admin-row-actions">
+              <button id="startScannerBtn" class="btn primary" type="button">Bật camera</button>
+              <button id="stopScannerBtn" class="btn" type="button">Tắt camera</button>
+            </div>
+
+            <label for="manualTicketCode">Nhập mã thủ công</label>
+            <input id="manualTicketCode" type="text" placeholder="VD: TC-123456">
+            <button id="manualCheckinBtn" class="btn dark" type="button">Xác nhận check-in</button>
+          </div>
+
+          <div id="checkinResult" class="ticket-info">
+            <h3>Kết quả check-in</h3>
+            <p>Chưa quét mã vé nào.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script src="config.js?v=ticket-auto-email-20260716"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
+  <script>
+    const CONFIG = window.THAM_CHINH_CONFIG || {};
+    let pendingTicket = null;
+    let scannerStream = null;
+    let scannerFrameId = 0;
+    let isScannerRunning = false;
+
+    function getCurrentUser() {
+      return JSON.parse(localStorage.getItem("thamChinhCurrentUser"));
+    }
+
+    function getDisplayName(user) {
+      const name = (user?.name || "").trim();
+      const email = (user?.email || "").trim().toLowerCase();
+      const emailName = email.split("@")[0];
+      return !name || name.toLowerCase() === emailName ? "Điều tra viên" : name;
+    }
+
+    function getTickets() {
+      return JSON.parse(localStorage.getItem("thamChinhTickets")) || [];
+    }
+
+    function saveTickets(tickets) {
+      localStorage.setItem("thamChinhTickets", JSON.stringify(tickets));
+    }
+
+    const MAX_TICKETS_PER_SLOT = 5;
+
+    function getBookedCountBySlot(slot) {
+      return getTickets()
+        .filter(ticket => ticket.timeSlot === slot)
+        .reduce((total, ticket) => total + Number(ticket.quantity || 1), 0);
+    }
+
+    function createVietQR(amount, content) {
+      const bankId = CONFIG.vietqr?.bankId || "MB";
+      const accountNo = CONFIG.vietqr?.accountNo || "0123456789";
+      const accountName = encodeURIComponent(CONFIG.vietqr?.accountName || "THAM CHINH GAME SHOW");
+      const addInfo = encodeURIComponent(content);
+      return `https://img.vietqr.io/image/${bankId}-${accountNo}-compact2.png?amount=${amount}&addInfo=${addInfo}&accountName=${accountName}`;
+    }
+
+    function createTicketQRPayload(ticket) {
+      return `THAMCHINH|${ticket.code}`;
+    }
+
+    function createTicketQRUrl(ticket) {
+      return `https://api.qrserver.com/v1/create-qr-code/?size=260x260&data=${encodeURIComponent(createTicketQRPayload(ticket))}`;
+    }
+
+    function extractTicketCode(value = "") {
+      const raw = String(value).trim();
+      if (raw.includes("|")) return raw.split("|").pop().trim();
+      return raw;
+    }
+
+    function createTicketEmailBody(ticket) {
+      return [
+        `Xin chào ${ticket.fullName},`,
+        "",
+        "Vé Thám Chính của bạn đã được ghi nhận sau khi thanh toán.",
+        `Mã vé: ${ticket.code}`,
+        `Loại vé: ${ticket.ticketType}`,
+        `Khung giờ: ${ticket.timeSlot}`,
+        `Số lượng: ${ticket.quantity}`,
+        `Tổng tiền: ${ticket.total.toLocaleString("vi-VN")}đ`,
+        "",
+        "Mã QR check-in:",
+        createTicketQRUrl(ticket),
+        "",
+        "Khi đến check-in, vui lòng đưa mã QR này cho admin quét. Mỗi mã chỉ dùng được một lần."
+      ].join("\n");
+    }
+
+    function sendTicketEmail(ticket) {
+      const subject = encodeURIComponent(`Vé Thám Chính - ${ticket.code}`);
+      const body = encodeURIComponent(createTicketEmailBody(ticket));
+      window.location.href = `mailto:${encodeURIComponent(ticket.email)}?subject=${subject}&body=${body}`;
+    }
+
+    function isEmailJsConfigured() {
+      return Boolean(
+        CONFIG.emailjs?.publicKey &&
+        CONFIG.emailjs?.serviceId &&
+        CONFIG.emailjs?.templateId &&
+        window.emailjs
+      );
+    }
+
+    async function sendTicketEmailAuto(ticket) {
+      if (!isEmailJsConfigured()) {
+        sendTicketEmail(ticket);
+        return {
+          ok: false,
+          fallback: true,
+          message: "Chưa cấu hình EmailJS nên website đã mở ứng dụng email để gửi thủ công."
+        };
+      }
+
+      const params = {
+        to_email: ticket.email,
+        to_name: ticket.fullName,
+        ticket_code: ticket.code,
+        ticket_type: ticket.ticketType,
+        time_slot: ticket.timeSlot,
+        quantity: ticket.quantity,
+        total: `${ticket.total.toLocaleString("vi-VN")}đ`,
+        qr_url: ticket.qrUrl || createTicketQRUrl(ticket),
+        email_body: createTicketEmailBody(ticket)
+      };
+
+      try {
+        emailjs.init({ publicKey: CONFIG.emailjs.publicKey });
+        await emailjs.send(CONFIG.emailjs.serviceId, CONFIG.emailjs.templateId, params);
+        return {
+          ok: true,
+          fallback: false,
+          message: "Email vé đã được gửi tự động cho khách hàng."
+        };
+      } catch (error) {
+        console.warn(`EmailJS gửi mail thất bại: ${error?.text || error?.message || error}`);
+        sendTicketEmail(ticket);
+        return {
+          ok: false,
+          fallback: true,
+          message: "Gửi email tự động thất bại nên website đã mở ứng dụng email để gửi thủ công."
+        };
+      }
+    }
+
+    function formatTime(minutes) {
+      const hour = Math.floor(minutes / 60);
+      const minute = minutes % 60;
+      return `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
+    }
+
+    function renderTimeSlots() {
+      const grid = document.getElementById("timeSlotGrid");
+      const selectedInput = document.getElementById("timeSlot");
+      const start = 8 * 60;
+      const end = 17 * 60;
+      const duration = 30;
+
+      grid.innerHTML = "";
+      for (let time = start; time < end; time += duration) {
+        const slot = `${formatTime(time)} ~ ${formatTime(time + duration)}`;
+        const bookedCount = getBookedCountBySlot(slot);
+        const remainingCount = Math.max(0, MAX_TICKETS_PER_SLOT - bookedCount);
+        const isFull = remainingCount <= 0;
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "time-slot-btn";
+        button.innerHTML = `${slot}<span>${isFull ? "Đã đủ 5 suất" : `Còn ${remainingCount} suất`}</span>`;
+        button.disabled = isFull;
+        button.classList.toggle("is-full", isFull);
+        button.addEventListener("click", () => {
+          if (isFull) return;
+          selectedInput.value = slot;
+          grid.querySelectorAll(".time-slot-btn").forEach(item => item.classList.remove("active"));
+          button.classList.add("active");
+        });
+        grid.appendChild(button);
+      }
+    }
+
+    function handleTicket(event) {
+      event.preventDefault();
+
+      const fullName = document.getElementById("fullName").value.trim();
+      const email = document.getElementById("email").value.trim();
+      const phone = document.getElementById("phone").value.trim();
+      const ticketSelect = document.getElementById("ticketType");
+      const ticketType = ticketSelect.value;
+      const price = Number(ticketSelect.selectedOptions[0].dataset.price || 0);
+      const timeSlot = document.getElementById("timeSlot").value;
+      const quantity = Number(document.getElementById("quantity").value);
+      const total = price * quantity;
+      const code = `TC-${Date.now().toString().slice(-6)}`;
+
+      if (!timeSlot) {
+        alert("Vui lòng chọn khung giờ tham gia.");
+        return;
+      }
+
+      const bookedCount = getBookedCountBySlot(timeSlot);
+      const remainingCount = MAX_TICKETS_PER_SLOT - bookedCount;
+
+      if (remainingCount <= 0) {
+        alert("Khung giờ này đã đủ 5 suất. Vui lòng chọn khung giờ khác.");
+        renderTimeSlots();
+        document.getElementById("timeSlot").value = "";
+        return;
+      }
+
+      if (quantity > remainingCount) {
+        alert(`Khung giờ này chỉ còn ${remainingCount} suất. Vui lòng giảm số lượng vé hoặc chọn khung giờ khác.`);
+        return;
+      }
+
+      pendingTicket = {
+        fullName,
+        email,
+        phone,
+        ticketType,
+        timeSlot,
+        quantity,
+        total,
+        code,
+        status: "pending-payment",
+        createdAt: new Date().toLocaleString("vi-VN")
+      };
+
+      document.getElementById("ticketResult").classList.remove("hidden");
+      document.getElementById("ticketResult").innerHTML = `
+        <strong>Đăng ký vé thành công!</strong><br>
+        Họ tên: ${fullName}<br>
+        Loại vé: ${ticketType}<br>
+        Khung giờ: ${timeSlot}<br>
+        Số lượng: ${quantity}<br>
+        Tổng tiền: ${total.toLocaleString("vi-VN")}đ<br>
+        Mã giữ chỗ: ${code}
+      `;
+
+      const qrUrl = createVietQR(total, code);
+      document.getElementById("qrBox").classList.remove("hidden");
+      document.getElementById("qrBox").innerHTML = `
+        <strong>Quét QR VietQR để thanh toán</strong>
+        <img src="${qrUrl}" alt="QR VietQR">
+        <p><strong>Nội dung chuyển khoản:</strong> ${code}</p>
+        <p><strong>MoMo:</strong> ${CONFIG.momo?.phone || "0900000000"} - ${CONFIG.momo?.accountName || "THAM CHINH GAME SHOW"}</p>
+      `;
+
+      event.target.reset();
+      document.getElementById("timeSlot").value = "";
+      document.querySelectorAll(".time-slot-btn").forEach(item => item.classList.remove("active"));
+      renderTimeSlots();
+      prefillMemberInfo();
+    }
+
+    function handleTicketPaidFlow(event) {
+      event.preventDefault();
+
+      const fullName = document.getElementById("fullName").value.trim();
+      const email = document.getElementById("email").value.trim();
+      const phone = document.getElementById("phone").value.trim();
+      const ticketSelect = document.getElementById("ticketType");
+      const ticketType = ticketSelect.value;
+      const price = Number(ticketSelect.selectedOptions[0].dataset.price || 0);
+      const timeSlot = document.getElementById("timeSlot").value;
+      const quantity = Number(document.getElementById("quantity").value);
+      const total = price * quantity;
+      const code = `TC-${Date.now().toString().slice(-6)}`;
+
+      if (!timeSlot) {
+        alert("Vui lòng chọn khung giờ tham gia.");
+        return;
+      }
+
+      const bookedCount = getBookedCountBySlot(timeSlot);
+      const remainingCount = MAX_TICKETS_PER_SLOT - bookedCount;
+
+      if (remainingCount <= 0) {
+        alert("Khung giờ này đã đủ 5 suất. Vui lòng chọn khung giờ khác.");
+        renderTimeSlots();
+        document.getElementById("timeSlot").value = "";
+        return;
+      }
+
+      if (quantity > remainingCount) {
+        alert(`Khung giờ này chỉ còn ${remainingCount} suất. Vui lòng giảm số lượng vé hoặc chọn khung giờ khác.`);
+        return;
+      }
+
+      pendingTicket = {
+        fullName,
+        email,
+        phone,
+        ticketType,
+        timeSlot,
+        quantity,
+        total,
+        code,
+        status: "pending-payment",
+        createdAt: new Date().toLocaleString("vi-VN")
+      };
+
+      document.getElementById("ticketResult").classList.remove("hidden");
+      document.getElementById("ticketResult").innerHTML = `
+        <strong>Đã tạo mã thanh toán tạm thời</strong><br>
+        Họ tên: ${fullName}<br>
+        Loại vé: ${ticketType}<br>
+        Khung giờ: ${timeSlot}<br>
+        Số lượng: ${quantity}<br>
+        Tổng tiền: ${total.toLocaleString("vi-VN")}đ<br>
+        Mã thanh toán: ${code}<br>
+        <em>Suất chỉ bị trừ sau khi bạn xác nhận đã thanh toán.</em>
+      `;
+
+      const qrUrl = createVietQR(total, code);
+      document.getElementById("qrBox").classList.remove("hidden");
+      document.getElementById("qrBox").innerHTML = `
+        <strong>Quét QR VietQR để thanh toán</strong>
+        <img src="${qrUrl}" alt="QR VietQR">
+        <p><strong>Nội dung chuyển khoản:</strong> ${code}</p>
+        <p><strong>MoMo:</strong> ${CONFIG.momo?.phone || "0900000000"} - ${CONFIG.momo?.accountName || "THAM CHINH GAME SHOW"}</p>
+        <button id="confirmPaidBtn" class="btn primary" type="button">Tôi đã thanh toán</button>
+      `;
+
+      event.target.reset();
+      document.getElementById("timeSlot").value = "";
+      document.querySelectorAll(".time-slot-btn").forEach(item => item.classList.remove("active"));
+      prefillMemberInfo();
+    }
+
+    function confirmPendingPayment() {
+      if (!pendingTicket) {
+        alert("Chưa có vé nào đang chờ thanh toán.");
+        return;
+      }
+
+      const bookedCount = getBookedCountBySlot(pendingTicket.timeSlot);
+      const remainingCount = MAX_TICKETS_PER_SLOT - bookedCount;
+
+      if (pendingTicket.quantity > remainingCount) {
+        alert("Khung giờ này vừa hết suất hoặc không còn đủ số vé. Suất thuộc về người thanh toán trước. Vui lòng chọn khung giờ khác.");
+        pendingTicket = null;
+        document.getElementById("qrBox").classList.add("hidden");
+        renderTimeSlots();
+        return;
+      }
+
+      const paidTicket = {
+        ...pendingTicket,
+        status: "paid",
+        qrPayload: createTicketQRPayload(pendingTicket),
+        qrUrl: createTicketQRUrl(pendingTicket),
+        checkedInAt: "",
+        paidAt: new Date().toLocaleString("vi-VN")
+      };
+      const tickets = getTickets();
+      tickets.push(paidTicket);
+      saveTickets(tickets);
+      pendingTicket = null;
+
+      document.getElementById("ticketResult").classList.remove("hidden");
+      document.getElementById("ticketResult").innerHTML = `
+        <strong>Thanh toán thành công, vé đã được ghi nhận!</strong><br>
+        Họ tên: ${paidTicket.fullName}<br>
+        Khung giờ: ${paidTicket.timeSlot}<br>
+        Số lượng: ${paidTicket.quantity}<br>
+        Mã vé: ${paidTicket.code}
+      `;
+      document.getElementById("qrBox").classList.add("hidden");
+      document.getElementById("ticketResult").innerHTML = `
+        <strong>Thanh toán thành công, vé đã được ghi nhận!</strong><br>
+        Họ tên: ${paidTicket.fullName}<br>
+        Khung giờ: ${paidTicket.timeSlot}<br>
+        Số lượng: ${paidTicket.quantity}<br>
+        Mã vé: ${paidTicket.code}<br>
+        <img class="ticket-qr-image" src="${paidTicket.qrUrl}" alt="QR check-in vé">
+        <p id="ticketEmailStatus">Đang gửi email vé tự động...</p>
+        <button id="sendTicketEmailBtn" class="btn dark" type="button" data-ticket-code="${paidTicket.code}">Gửi lại email vé</button>
+      `;
+      renderTimeSlots();
+      sendTicketEmailAuto(paidTicket).then(result => {
+        const status = document.getElementById("ticketEmailStatus");
+        if (status) status.textContent = result.message;
+      });
+    }
+
+    function resendTicketEmailByCode(code) {
+      const ticket = getTickets().find(item => item.code === code);
+      if (!ticket) {
+        alert("Không tìm thấy vé để gửi email.");
+        return;
+      }
+      sendTicketEmailAuto(ticket).then(result => alert(result.message));
+    }
+
+    function renderCheckinResult(message, type = "") {
+      const result = document.getElementById("checkinResult");
+      if (!result) return;
+      result.className = `ticket-info checkin-result ${type}`;
+      result.innerHTML = message;
+    }
+
+    function checkInTicket(rawValue) {
+      const code = extractTicketCode(rawValue);
+      if (!code) {
+        renderCheckinResult("<h3>Không có mã vé</h3><p>Vui lòng quét lại hoặc nhập mã thủ công.</p>", "error");
+        return;
+      }
+
+      const tickets = getTickets();
+      const index = tickets.findIndex(ticket => ticket.code === code && ticket.status === "paid");
+
+      if (index === -1) {
+        renderCheckinResult(`<h3>Mã vé không hợp lệ</h3><p>Không tìm thấy vé đã thanh toán với mã <strong>${code}</strong>.</p>`, "error");
+        return;
+      }
+
+      const ticket = tickets[index];
+      if (ticket.checkedInAt) {
+        renderCheckinResult(`
+          <h3>Mã QR đã được sử dụng</h3>
+          <p><strong>Mã vé:</strong> ${ticket.code}</p>
+          <p><strong>Khách:</strong> ${ticket.fullName}</p>
+          <p><strong>Thời gian đã quét:</strong> ${ticket.checkedInAt}</p>
+        `, "warning");
+        return;
+      }
+
+      ticket.checkedInAt = new Date().toLocaleString("vi-VN");
+      tickets[index] = ticket;
+      saveTickets(tickets);
+
+      renderCheckinResult(`
+        <h3>Check-in thành công</h3>
+        <p><strong>Mã vé:</strong> ${ticket.code}</p>
+        <p><strong>Khách:</strong> ${ticket.fullName}</p>
+        <p><strong>Khung giờ:</strong> ${ticket.timeSlot}</p>
+        <p><strong>Số lượng:</strong> ${ticket.quantity}</p>
+        <p><strong>Thời gian quét:</strong> ${ticket.checkedInAt}</p>
+      `, "success");
+    }
+
+    async function startCheckinScanner() {
+      const video = document.getElementById("checkinVideo");
+      if (!video) return;
+
+      if (!("BarcodeDetector" in window)) {
+        renderCheckinResult("<h3>Trình duyệt chưa hỗ trợ quét QR</h3><p>Hãy dùng Chrome/Edge mới, hoặc nhập mã vé thủ công.</p>", "warning");
+        return;
+      }
+
+      try {
+        scannerStream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: "environment" },
+          audio: false
+        });
+        video.srcObject = scannerStream;
+        await video.play();
+
+        const detector = new BarcodeDetector({ formats: ["qr_code"] });
+        isScannerRunning = true;
+
+        const scan = async () => {
+          if (!isScannerRunning) return;
+          try {
+            const codes = await detector.detect(video);
+            if (codes.length) {
+              checkInTicket(codes[0].rawValue);
+              stopCheckinScanner();
+              return;
+            }
+          } catch (error) {
+            renderCheckinResult(`<h3>Không quét được mã</h3><p>${error.message}</p>`, "error");
+          }
+          scannerFrameId = requestAnimationFrame(scan);
+        };
+
+        scan();
+      } catch (error) {
+        renderCheckinResult(`<h3>Không mở được camera</h3><p>${error.message}</p>`, "error");
+      }
+    }
+
+    function stopCheckinScanner() {
+      isScannerRunning = false;
+      if (scannerFrameId) {
+        cancelAnimationFrame(scannerFrameId);
+        scannerFrameId = 0;
+      }
+      if (scannerStream) {
+        scannerStream.getTracks().forEach(track => track.stop());
+        scannerStream = null;
+      }
+      const video = document.getElementById("checkinVideo");
+      if (video) video.srcObject = null;
+    }
+
+    async function startCheckinScannerWithFallback() {
+      const video = document.getElementById("checkinVideo");
+      if (!video) return;
+
+      try {
+        stopCheckinScanner();
+        scannerStream = await navigator.mediaDevices.getUserMedia({
+          video: true,
+          audio: false
+        });
+        video.srcObject = scannerStream;
+        await video.play();
+
+        const detector = "BarcodeDetector" in window
+          ? new BarcodeDetector({ formats: ["qr_code"] })
+          : null;
+        const canvas = document.createElement("canvas");
+        const context = canvas.getContext("2d", { willReadFrequently: true });
+
+        isScannerRunning = true;
+        renderCheckinResult("<h3>Camera đã bật</h3><p>Đưa mã QR vào giữa khung camera để check-in.</p>");
+
+        const scan = async () => {
+          if (!isScannerRunning) return;
+
+          try {
+            if (detector) {
+              const codes = await detector.detect(video);
+              if (codes.length) {
+                checkInTicket(codes[0].rawValue);
+                stopCheckinScanner();
+                return;
+              }
+            } else if (window.jsQR && video.videoWidth && video.videoHeight) {
+              canvas.width = video.videoWidth;
+              canvas.height = video.videoHeight;
+              context.drawImage(video, 0, 0, canvas.width, canvas.height);
+              const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
+              const code = jsQR(imageData.data, imageData.width, imageData.height);
+              if (code?.data) {
+                checkInTicket(code.data);
+                stopCheckinScanner();
+                return;
+              }
+            } else if (!window.jsQR) {
+              renderCheckinResult("<h3>Chưa tải được thư viện quét QR</h3><p>Hãy kiểm tra mạng hoặc nhập mã vé thủ công.</p>", "warning");
+              stopCheckinScanner();
+              return;
+            }
+          } catch (error) {
+            renderCheckinResult(`<h3>Không quét được mã</h3><p>${error.message}</p>`, "error");
+          }
+
+          scannerFrameId = requestAnimationFrame(scan);
+        };
+
+        scan();
+      } catch (error) {
+        renderCheckinResult(`<h3>Không mở được camera</h3><p>${error.message}</p><p>Hãy cấp quyền camera cho trình duyệt hoặc nhập mã vé thủ công.</p>`, "error");
+      }
+    }
+
+    function prefillMemberInfo() {
+      const current = getCurrentUser();
+      const adminPanel = document.getElementById("adminCheckinPanel");
+
+      if (current?.role === "admin") {
+        document.getElementById("ticketLoginNotice").classList.add("hidden");
+        document.getElementById("ticketContent").classList.add("hidden");
+        adminPanel.classList.remove("hidden");
+        return;
+      }
+
+      adminPanel.classList.add("hidden");
+
+      if (!current) {
+        document.getElementById("ticketLoginNotice").classList.remove("hidden");
+        document.getElementById("ticketContent").classList.add("hidden");
+        return;
+      }
+
+      document.getElementById("ticketLoginNotice").classList.add("hidden");
+      document.getElementById("ticketContent").classList.remove("hidden");
+      document.getElementById("fullName").value = getDisplayName(current);
+      document.getElementById("email").value = current.email || "";
+    }
+
+    document.getElementById("ticketForm").addEventListener("submit", handleTicketPaidFlow);
+    document.addEventListener("click", event => {
+      if (event.target.id === "confirmPaidBtn") {
+        confirmPendingPayment();
+      }
+      if (event.target.id === "sendTicketEmailBtn") {
+        resendTicketEmailByCode(event.target.dataset.ticketCode);
+      }
+      if (event.target.id === "startScannerBtn") {
+        startCheckinScannerWithFallback();
+      }
+      if (event.target.id === "stopScannerBtn") {
+        stopCheckinScanner();
+      }
+      if (event.target.id === "manualCheckinBtn") {
+        checkInTicket(document.getElementById("manualTicketCode").value);
+      }
+    });
+    renderTimeSlots();
+    prefillMemberInfo();
+  </script>
+</body>
+</html>

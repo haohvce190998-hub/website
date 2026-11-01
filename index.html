@@ -1,12 +1,279 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="vi">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Detective Ticket Bureau</title>
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.jsx"></script>
-  </body>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Thám Chính - Vụ Án Người Báo Án</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Mali:wght@400;500;600;700&display=swap&subset=vietnamese" rel="stylesheet">
+  <link rel="stylesheet" href="style.css?v=admin-character-image-20260715" />
+</head>
+
+<body>
+  <header class="hero">
+    <nav class="navbar">
+      <a href="#" class="logo">
+        <img src="logo.png" alt="Logo Thám Chính">
+      </a>
+
+      <div class="nav-links">
+        <a href="#" data-home-link>Trang chủ</a>
+        <a href="#case">Chi tiết vụ án</a>
+        <a href="#suspects">Hồ sơ nhân vật</a>
+        <a href="#clues">Manh mối</a>
+        <a href="#videos">Video</a>
+        <a href="#discussion">Bình luận</a>
+        <a href="#leaderboard">Bảng xếp hạng</a>
+        <a href="#detective-profile">Hồ sơ</a>
+        <a href="ticket.html">Đặt vé</a>
+        <a href="#admin" class="hidden">Admin</a>
+      </div>
+
+      <div class="auth-actions">
+        <button id="openLoginBtn" class="btn small">Đăng nhập</button>
+        <button id="openRegisterBtn" class="btn small dark">Đăng ký</button>
+        <button id="logoutBtn" class="btn small hidden">Đăng xuất</button>
+      </div>
+    </nav>
+
+    <div class="hero-content">
+      <h1>Tham Chính</h1>
+      <a class="btn primary" href="ticket.html">Đăng ký tham gia phá án</a>
+    </div>
+    <div id="detectiveModel" class="detective-model" aria-hidden="true">
+      <img class="detective-photo" src="assets/detective-real.png" alt="">
+      <div class="detective-shadow"></div>
+      <div class="detective-body">
+        <div class="detective-coat"></div>
+        <div class="detective-collar left"></div>
+        <div class="detective-collar right"></div>
+        <div class="detective-tie"></div>
+        <div class="detective-neck"></div>
+      </div>
+      <div class="detective-head">
+        <div class="detective-hat">
+          <span></span>
+        </div>
+        <div class="detective-face">
+          <div class="detective-eye left"></div>
+          <div class="detective-eye right"></div>
+          <div class="detective-nose"></div>
+          <div class="detective-mouth"></div>
+        </div>
+      </div>
+      <div class="detective-arm">
+        <div class="detective-hand"></div>
+        <div class="detective-glass">
+          <span></span>
+        </div>
+      </div>
+      <div class="detective-arm right">
+        <div class="detective-hand"></div>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <section id="case" class="section case-section">
+      <div class="section-title">
+        <h2>Chi tiết vụ án</h2>
+        <p>Toàn bộ dự án xoay quanh một vụ án duy nhất: “Người Báo Án”.</p>
+      </div>
+
+      <div class="case-layout">
+        <article class="case-detail">
+          <h3>Bối cảnh</h3>
+          <p>
+            Trong đêm chuẩn bị cho gameshow học đường, một vật chứng quan trọng biến mất.
+            Cường chạy đến báo án và nói rằng mình nhìn thấy một bóng người rời khỏi hiện trường.
+            Khang bắt đầu điều tra từ lời khai của Cường.
+          </p>
+
+          <h3>Twist cuối cùng</h3>
+          <p>
+            Cường không chỉ là người báo án. Cường chính là hung thủ thật sự.
+            Việc báo án là cách để Cường kiểm soát hướng điều tra, tạo chứng cứ giả
+            và khiến người khác bị nghi ngờ.
+          </p>
+
+          <h3>Mục tiêu người chơi</h3>
+          <p>
+            Người chơi đóng vai điều tra viên, cùng Khang phân tích lời khai,
+            xem video vụ án, bình luận giả thuyết và tìm ra sơ hở của Cường.
+          </p>
+        </article>
+
+        <article class="case-detail dark-card">
+          <h3>Tiến trình vụ án</h3>
+          <ol>
+            <li>Cường xuất hiện và báo án.</li>
+            <li>Khang thu thập lời khai ban đầu.</li>
+            <li>Video hiện trường hé lộ mâu thuẫn.</li>
+            <li>Người chơi thảo luận và đưa giả thuyết.</li>
+            <li>Bằng chứng cuối cùng chỉ ra Cường là hung thủ.</li>
+          </ol>
+        </article>
+      </div>
+    </section>
+
+    <section id="suspects" class="section suspect-section">
+      <div class="section-title">
+        <h2>Hồ sơ nhân vật</h2>
+        <p>Chọn từng nhân vật để xem vai trò, lời khai, manh mối liên quan và mức độ cần chú ý trong vụ án.</p>
+      </div>
+
+      <div id="suspectGrid" class="suspect-grid"></div>
+      <div id="characterDetail" class="character-detail"></div>
+    </section>
+
+    <section id="clues" class="section clue-section">
+      <div class="section-title">
+        <h2>Manh mối xuyên suốt</h2>
+        <p>Các manh mối giúp người chơi nhận ra Cường đang che giấu sự thật.</p>
+      </div>
+
+      <div class="clue-grid">
+        <div><strong>01</strong><p>Cường là người đầu tiên xuất hiện ở hiện trường.</p></div>
+        <div><strong>02</strong><p>Lời khai của Cường thay đổi khi bị Khang hỏi lại.</p></div>
+        <div><strong>03</strong><p>Vật chứng phụ xuất hiện trong balo của Cường.</p></div>
+        <div><strong>04</strong><p>Cường biết chi tiết mà chỉ hung thủ mới biết.</p></div>
+      </div>
+    </section>
+
+    <section id="videos" class="section video-section">
+      <div class="section-title">
+        <h2>Video vụ án</h2>
+      </div>
+
+      <div id="videoList" class="video-grid"></div>
+
+      <div id="uploadPanel" class="upload-panel hidden">
+        <h3>Đăng video vụ án</h3>
+        <form id="uploadForm" class="form-card">
+          <label for="videoTitle">Tiêu đề video</label>
+          <input type="text" id="videoTitle" placeholder="VD: Tập 2 - Lời khai mâu thuẫn" required />
+
+          <label for="videoDesc">Mô tả video</label>
+          <textarea id="videoDesc" placeholder="Mô tả ngắn nội dung video" required></textarea>
+
+          <label for="videoUrl">Link video YouTube</label>
+          <input type="url" id="videoUrl" placeholder="VD: https://youtu.be/..." required />
+
+          <button id="uploadSubmitBtn" class="btn primary" type="submit">Lưu video</button>
+
+          <div id="uploadStatus" class="upload-status hidden" aria-live="polite">
+            <div class="upload-status-head">
+              <strong id="uploadStatusText">Đang lưu video...</strong>
+              <span id="uploadPercent">0%</span>
+            </div>
+            <div class="upload-progress">
+              <span id="uploadProgressBar"></span>
+            </div>
+          </div>
+        </form>
+      </div>
+    </section>
+
+    <section id="discussion" class="section discussion-section">
+      <div class="section-title">
+        <h2>Bình luận và thảo luận vụ án</h2>
+        <p>Bình luận suy nghĩ của mọi người để tìm ra manh mối. Mỗi bình luận hợp lệ nhận điểm suy luận.</p>
+      </div>
+
+      <form id="commentForm" class="form-card">
+        <label for="commentText">Bình luận của bạn</label>
+        <textarea id="commentText" placeholder="Chia sẻ suy nghĩ của bạn để tìm ra manh mối..." required></textarea>
+        <button class="btn primary" type="submit">Gửi bình luận + nhận điểm</button>
+      </form>
+
+      <div id="commentList" class="comment-list"></div>
+    </section>
+
+    <section id="leaderboard" class="section leaderboard-section">
+      <div class="section-title">
+        <h2>Bảng xếp hạng điểm suy luận</h2>
+        <p>Điểm tăng khi người tham gia bình luận để tìm manh mối vụ án.</p>
+      </div>
+
+      <table class="leaderboard">
+        <thead>
+          <tr>
+            <th>Hạng</th>
+            <th>Điều tra viên</th>
+            <th>Điểm</th>
+            <th>Cấp bậc</th>
+          </tr>
+        </thead>
+        <tbody id="leaderboardBody"></tbody>
+      </table>
+    </section>
+
+    <section id="detective-profile" class="section profile-section">
+      <div class="section-title">
+        <h2>Hồ sơ điều tra viên</h2>
+      </div>
+
+      <div id="profileBox" class="profile-box">
+        <h3>Khách truy cập</h3>
+        <p>Bạn chưa đăng nhập. Hãy đăng ký để trở thành điều tra viên hỗ trợ Khang phá án.</p>
+      </div>
+    </section>
+
+    <section id="admin" class="section admin-section hidden">
+      <div class="section-title">
+        <h2>Admin Dashboard quản lý video và vé</h2>
+        <p>Admin có thể xem danh sách video, vé, bình luận và người dùng.</p>
+      </div>
+
+      <div id="adminPanel" class="admin-panel">
+        <p>Bạn cần đăng nhập tài khoản admin để xem khu vực này.</p>
+      </div>
+    </section>
+  </main>
+
+  <div id="authModal" class="modal hidden">
+    <div class="modal-card">
+      <button id="closeAuthBtn" class="modal-close">×</button>
+      <h2 id="authTitle">Đăng nhập</h2>
+
+      <form id="authForm">
+        <label for="authName" id="authNameLabel" class="hidden">Tên điều tra viên</label>
+        <input type="text" id="authName" class="hidden" placeholder="VD: Hào Detective">
+
+        <label for="authEmail">Email</label>
+        <input type="email" id="authEmail" placeholder="email@example.com" required>
+
+        <label for="authPassword">Mật khẩu</label>
+        <input type="password" id="authPassword" placeholder="Nhập mật khẩu" required>
+
+        <button class="btn primary" type="submit">Xác nhận</button>
+      </form>
+    </div>
+  </div>
+
+  <footer>
+    <p>© 2026 Thám Chính - Vụ Án Người Báo Án.</p>
+  </footer>
+
+  <button id="backToTopBtn" class="back-to-top" type="button" aria-label="Quay về đầu trang">ZZ</button>
+  <a
+    class="facebook-chat"
+    href="https://www.facebook.com/profile.php?id=61590673562128"
+    target="_blank"
+    rel="noopener"
+    aria-label="Nhắn tin với quản lý dự án qua Facebook">
+    <span class="facebook-chat-icon">f</span>
+    <span class="facebook-chat-text">Chat</span>
+  </a>
+
+  <script src="config.js?v=comments-sync-20260624"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script>
+    if (!window.supabase) {
+      document.write('<script src="https://unpkg.com/@supabase/supabase-js@2"><\/script>');
+    }
+  </script>
+  <script src="script.js?v=admin-character-image-20260715"></script>
+</body>
 </html>
