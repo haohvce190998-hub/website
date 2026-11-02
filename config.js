@@ -16,6 +16,10 @@
 */
 
 window.THAM_CHINH_CONFIG = {
+  auth: {
+    siteUrl: "https://thamchinh.vercel.app"
+  },
+
   // Dien Supabase config de admin upload video va moi nguoi cung xem duoc video.
   supabase: {
 url: "https://gjrzlhljchvxibrtrrgx.supabase.co",

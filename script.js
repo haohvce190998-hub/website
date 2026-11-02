@@ -221,6 +221,7 @@ function openAuth(mode) {
   authMode = mode;
   document.getElementById("authModal").classList.remove("hidden");
   document.getElementById("authTitle").innerText = mode === "login" ? "Đăng nhập" : "Đăng ký tài khoản";
+  showAuthView("auth");
 
   const nameInput = document.getElementById("authName");
   const nameLabel = document.getElementById("authNameLabel");
@@ -239,6 +240,90 @@ function openAuth(mode) {
 function closeAuth() {
   document.getElementById("authModal").classList.add("hidden");
   document.getElementById("authForm").reset();
+  document.getElementById("resetRequestForm").reset();
+  document.getElementById("newPasswordForm").reset();
+  setAuthStatus("");
+}
+
+function setAuthStatus(message, isError = false) {
+  const status = document.getElementById("authStatus");
+  status.textContent = message;
+  status.classList.toggle("hidden", !message);
+  status.classList.toggle("error", Boolean(message && isError));
+}
+
+function showAuthView(view) {
+  document.getElementById("authForm").classList.toggle("hidden", view !== "auth");
+  document.getElementById("forgotPasswordBtn").classList.toggle("hidden", view !== "auth" || authMode !== "login");
+  document.getElementById("resetRequestForm").classList.toggle("hidden", view !== "request-reset");
+  document.getElementById("newPasswordForm").classList.toggle("hidden", view !== "new-password");
+  if (view !== "new-password") setAuthStatus("");
+}
+
+function openPasswordResetRequest() {
+  document.getElementById("authModal").classList.remove("hidden");
+  document.getElementById("authTitle").textContent = "Đặt lại mật khẩu";
+  document.getElementById("resetEmail").value = document.getElementById("authEmail").value.trim();
+  showAuthView("request-reset");
+}
+
+async function requestPasswordReset(event) {
+  event.preventDefault();
+  const client = getSupabaseClient();
+  const email = document.getElementById("resetEmail").value.trim().toLowerCase();
+  const siteUrl = CONFIG.auth?.siteUrl || window.location.origin;
+  setAuthStatus("Đang gửi email đặt lại mật khẩu...");
+  const { error } = await client.auth.resetPasswordForEmail(email, {
+    redirectTo: `${siteUrl}/`
+  });
+  if (error) {
+    setAuthStatus(error.message, true);
+    return;
+  }
+  setAuthStatus("Đã gửi email. Hãy mở link mới nhất trong hộp thư; link cũ sẽ không còn hiệu lực.");
+}
+
+function openNewPasswordForm() {
+  document.getElementById("authModal").classList.remove("hidden");
+  document.getElementById("authTitle").textContent = "Tạo mật khẩu mới";
+  showAuthView("new-password");
+  setAuthStatus("Link đã được xác thực. Hãy nhập mật khẩu mới.");
+}
+
+async function updateRecoveredPassword(event) {
+  event.preventDefault();
+  const password = document.getElementById("newPassword").value;
+  const confirmation = document.getElementById("confirmNewPassword").value;
+  if (password !== confirmation) {
+    setAuthStatus("Hai mật khẩu chưa khớp.", true);
+    return;
+  }
+  const client = getSupabaseClient();
+  const { error } = await client.auth.updateUser({ password });
+  if (error) {
+    setAuthStatus(error.message, true);
+    return;
+  }
+  setAuthStatus("Đổi mật khẩu thành công. Bạn có thể đăng nhập bằng mật khẩu mới.");
+  window.history.replaceState({}, document.title, window.location.pathname);
+  window.setTimeout(() => openAuth("login"), 1800);
+}
+
+function initPasswordRecovery() {
+  const client = getSupabaseClient();
+  if (!client) return;
+
+  const hashParams = new URLSearchParams(window.location.hash.slice(1));
+  if (hashParams.get("error")) {
+    document.getElementById("authModal").classList.remove("hidden");
+    document.getElementById("authTitle").textContent = "Link không còn hiệu lực";
+    showAuthView("request-reset");
+    setAuthStatus("Link reset đã hết hạn hoặc đã được sử dụng. Hãy nhập email để nhận link mới.", true);
+  }
+
+  client.auth.onAuthStateChange(event => {
+    if (event === "PASSWORD_RECOVERY") openNewPasswordForm();
+  });
 }
 
 async function handleAuth(event) {
@@ -1962,6 +2047,10 @@ document.getElementById("openRegisterBtn").addEventListener("click", () => openA
 document.getElementById("logoutBtn").addEventListener("click", logout);
 document.getElementById("closeAuthBtn").addEventListener("click", closeAuth);
 document.getElementById("authForm").addEventListener("submit", handleAuth);
+document.getElementById("forgotPasswordBtn").addEventListener("click", openPasswordResetRequest);
+document.getElementById("backToLoginBtn").addEventListener("click", () => openAuth("login"));
+document.getElementById("resetRequestForm").addEventListener("submit", requestPasswordReset);
+document.getElementById("newPasswordForm").addEventListener("submit", updateRecoveredPassword);
 document.getElementById("uploadForm").addEventListener("submit", handleVideoUpload);
 document.getElementById("commentForm").addEventListener("submit", handleComment);
 document.getElementById("ticketForm")?.addEventListener("submit", handleTicket);
@@ -1996,6 +2085,7 @@ document.getElementById("backToTopBtn").addEventListener("click", () => {
 });
 
 getUsers();
+initPasswordRecovery();
 initDetectiveModel();
 renderSuspects();
 renderVideos();

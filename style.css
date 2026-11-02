@@ -1769,6 +1769,33 @@ body.payment-open {
   width: 100%;
 }
 
+.link-button {
+  width: 100%;
+  margin-top: 12px;
+  padding: 10px;
+  border: 0;
+  background: transparent;
+  color: var(--blue-bright);
+  font: 700 14px var(--ui-font);
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.auth-status {
+  margin: 14px 0 0;
+  padding: 12px;
+  border: 1px solid var(--line-soft);
+  background: rgba(31, 143, 255, .10);
+  color: var(--text);
+  line-height: 1.5;
+}
+
+.auth-status.error {
+  border-color: rgba(255, 61, 90, .55);
+  background: rgba(255, 61, 90, .10);
+  color: #ffd8de;
+}
+
 @media (max-width: 760px) {
   .souvenir-product-grid,
   .admin-souvenir-list,

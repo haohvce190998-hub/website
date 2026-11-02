@@ -249,6 +249,27 @@
 
         <button class="btn primary" type="submit">Xác nhận</button>
       </form>
+
+      <button id="forgotPasswordBtn" class="link-button" type="button">Quên mật khẩu?</button>
+
+      <form id="resetRequestForm" class="hidden">
+        <label for="resetEmail">Email tài khoản</label>
+        <input type="email" id="resetEmail" placeholder="email@example.com" required>
+        <button class="btn primary" type="submit">Gửi link đặt lại mật khẩu</button>
+        <button id="backToLoginBtn" class="link-button" type="button">Quay lại đăng nhập</button>
+      </form>
+
+      <form id="newPasswordForm" class="hidden">
+        <label for="newPassword">Mật khẩu mới</label>
+        <input type="password" id="newPassword" minlength="8" placeholder="Tối thiểu 8 ký tự" required>
+
+        <label for="confirmNewPassword">Nhập lại mật khẩu mới</label>
+        <input type="password" id="confirmNewPassword" minlength="8" placeholder="Nhập lại mật khẩu" required>
+
+        <button class="btn primary" type="submit">Cập nhật mật khẩu</button>
+      </form>
+
+      <p id="authStatus" class="auth-status hidden" aria-live="polite"></p>
     </div>
   </div>
 
